@@ -1,9 +1,7 @@
 package com.mobilemoney.mobilemoney.controllers;
 
 import com.mobilemoney.mobilemoney.config.otp.SendMessage;
-import com.mobilemoney.mobilemoney.dto.JwtAuthenticationResponse;
-import com.mobilemoney.mobilemoney.dto.SignInRequest;
-import com.mobilemoney.mobilemoney.dto.SignUpRequest;
+import com.mobilemoney.mobilemoney.dto.*;
 import com.mobilemoney.mobilemoney.repositories.UserRepository;
 import com.mobilemoney.mobilemoney.services.AuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,21 +17,19 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/authentication")
 @RequiredArgsConstructor
 public class AuthenticationController {
-    SendMessage sendMessage= new SendMessage() ;
+    @Autowired
+    SendMessage sendMessage;
     @Autowired
     UserRepository userRepository;
 
     private final AuthenticationService authenticationService;
 
     @PostMapping("/signup")
-    public String signup( @RequestBody SignUpRequest request) {
+    public JwtAuthenticationResponse signup( @RequestBody SignUpRequest request) {
         String phone = request.getPhoneNumber();
-        if (userRepository.findByPhoneNumber(phone).isPresent()){
-            return "this phone number already have account";
-        }else {
-            sendMessage.sendMessage(phone);
-             return authenticationService.signup(request).getToken();
-        }
+//        sendMessage.sendMessage(phone);
+        return authenticationService.signup(request);
+
     }
 
     @PostMapping("/signing")
@@ -42,11 +38,16 @@ public class AuthenticationController {
     }
 
     @PostMapping("/otpCode")
-    public String getOtpCode(@RequestBody String otp){
-        if (sendMessage.validateOTP(otp)) {
-           return "valid code";
-        }else {
-            return "invalid code";
-        }
+    public CodePinMessage getOtpCode(@RequestBody OtpValidation otpValidation){
+        return  sendMessage.validateOTP(otpValidation);
+    }
+
+    @PostMapping("/validateNumberPhone-unique")
+    public Boolean validateNumberPhone(@RequestBody PhoneNumber pn){
+        String phoneNumber = pn.getPhoneNumber();
+        boolean present = userRepository.findByPhoneNumber(phoneNumber).isPresent();
+
+        return  !present;
     }
 }
+

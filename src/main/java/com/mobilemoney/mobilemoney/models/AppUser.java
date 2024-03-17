@@ -1,5 +1,7 @@
 package com.mobilemoney.mobilemoney.models;
 
+import com.mobilemoney.mobilemoney.models.transaction.Account;
+import com.mobilemoney.mobilemoney.models.transaction.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.boot.autoconfigure.task.TaskExecutionProperties;
@@ -34,6 +36,19 @@ public class AppUser implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     Role role;
+
+    // Composition relationship with Account
+    // if the UserApp PERSIST then Account should be PERSISTED
+    //think about this ALL Cascading
+    @OneToOne(mappedBy = "appUser", cascade = CascadeType.ALL)
+    private Account account;
+
+    // Bidirectional relationship with Transaction
+    @OneToMany(mappedBy = "sender",cascade = CascadeType.PERSIST)
+    private List<Transaction> sentTransactions;
+
+    @OneToMany(mappedBy = "receiver",cascade = CascadeType.PERSIST)
+    private List<Transaction> receivedTransactions;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

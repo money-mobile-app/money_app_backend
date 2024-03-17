@@ -53,6 +53,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/authentication/signup").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/authentication/signing").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/authentication/otpCode").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/authentication/validateNumberPhone-unique").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/transaction/*").permitAll()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
