@@ -11,6 +11,8 @@ import com.mobilemoney.mobilemoney.repositories.UserRepository;
 import com.mobilemoney.mobilemoney.repositories.transactionRepo.AccountRepository;
 import com.mobilemoney.mobilemoney.repositories.transactionRepo.TransactionRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +28,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
 
     @Transactional
-    public String chargeAccount(CashInCashOutDTO chargeMyAccountDto) {
+    public ResponseEntity<String> chargeAccount(CashInCashOutDTO chargeMyAccountDto) {
         try {
             BigDecimal amount = chargeMyAccountDto.getAmount();
             String phoneNumber = chargeMyAccountDto.getPhone();
@@ -38,23 +40,24 @@ public class TransactionService {
             account.setBalance(newBalance);
             createTransaction(user,user,amount,TransactionType.CHARGE);
             accountRepository.save(account);
-            return "successfully";
+            return ResponseEntity.ok("Successfully");
         }catch (TransactionException ex){
-            return "transaction exception";
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Transaction Exception");
         }
 
 
     }
     @Transactional
-    public String transferMoney(String phoneSender,String phoneReceiver,BigDecimal amount){
+    public ResponseEntity<String> transferMoney(String phoneSender, String phoneReceiver, BigDecimal amount) {
         try {
-            AppUser sender = userRepository.findByPhoneNumber(phoneSender).get();
-            AppUser receiver = userRepository.findByPhoneNumber(phoneReceiver).get();
-            Account accountSender = accountRepository.findByAppUser(sender).get();
-            Account accountReceiver = accountRepository.findByAppUser(receiver).get();
+            AppUser sender = userRepository.findByPhoneNumber(phoneSender).orElseThrow(() -> new RuntimeException("Sender not found"));
+            AppUser receiver = userRepository.findByPhoneNumber(phoneReceiver).orElseThrow(() -> new RuntimeException("Receiver not found"));
+            Account accountSender = accountRepository.findByAppUser(sender).orElseThrow(() -> new RuntimeException("Sender account not found"));
+            Account accountReceiver = accountRepository.findByAppUser(receiver).orElseThrow(() -> new RuntimeException("Receiver account not found"));
+
             BigDecimal senderActualAmount = accountSender.getBalance();
-            if(senderActualAmount.compareTo(amount) >=0 ){
-                BigDecimal senderNewAmount = accountSender.getBalance().subtract(amount);
+            if (senderActualAmount.compareTo(amount) >= 0) {
+                BigDecimal senderNewAmount = senderActualAmount.subtract(amount);
                 BigDecimal receiverNewAmount = accountReceiver.getBalance().add(amount);
 
                 accountSender.setUpdatedAt(LocalDateTime.now());
@@ -66,17 +69,17 @@ public class TransactionService {
                 accountRepository.save(accountReceiver);
 
                 TransactionType transactionType = findTransactionType(sender, receiver, senderNewAmount, senderActualAmount);
-                createTransaction(sender,receiver,amount,transactionType);
-                return "successfully";
-            }else {
-                return "balance not enough";
+                createTransaction(sender, receiver, amount, transactionType);
+
+                return ResponseEntity.ok("Successfully transferred.");
+            } else {
+                return ResponseEntity.badRequest().body("Balance not enough");
             }
-        }catch (TransactionException ex){
-                return "transaction Exception";
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Transaction Exception: " + ex.getMessage());
         }
-
-
     }
+
 
     public TransactionType findTransactionType(AppUser sender,AppUser receiver,BigDecimal senderNewAmount,BigDecimal senderActualAmount){
         TransactionType transactionType;
@@ -109,7 +112,7 @@ public class TransactionService {
         transactionRepository.save(transaction);
     }
 @Transactional
-    public String cashOut(CashInCashOutDTO cashOutDto) {
+    public ResponseEntity<String> cashOut(CashInCashOutDTO cashOutDto) {
         try{
             BigDecimal amount = cashOutDto.getAmount();
             String phoneNumber = cashOutDto.getPhone();
@@ -122,13 +125,12 @@ public class TransactionService {
                 account.setBalance(newBalance);
                 accountRepository.save(account);
                 createTransaction(user,user,amount,TransactionType.WITHDRAW);
-                return "successfully";
-            }else {
-                return "balance not enough";
+                return ResponseEntity.ok("Successfully transferred.");
+            } else {
+                return ResponseEntity.badRequest().body("Balance not enough");
             }
-
-        }catch (TransactionException ex){
-            return "transaction exception";
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Transaction Exception: " + ex.getMessage());
         }
 
     }
